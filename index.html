@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDR File Summary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        input[type="file"], input[type="number"], select {
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CDR Call Summary by Extension</h1>
+
+        <h3>Extension Database</h3>
+        <input type="text" id="extNumber" placeholder="Extension Number" maxlength="10">
+        <input type="text" id="extName" placeholder="Extension Name">
+        <button onclick="addExtension()">Add Extension</button>
+        <ul id="extensionList"></ul>
+
+        <h3>Settings</h3>
+        <label for="lengthFilter">Filter by Extension Length:</label>
+        <input type="number" id="lengthFilter" min="1" placeholder="e.g., 3 or 4">
+        <button onclick="saveSettings()">Save Filter</button>
+
+        <label for="durationUnit">Duration Display Unit:</label>
+        <select id="durationUnit" onchange="saveSettings()">
+            <option value="seconds">Seconds</option>
+            <option value="minutes">Minutes</option>
+            <option value="hours">Hours</option>
+        </select>
+
+        <h3>CDR Upload</h3>
+        <input type="file" id="csvFileInput" accept=".csv">
+        <button onclick="processCSV()">Generate Summary</button>
+        <button onclick="downloadCSV()">Download CSV</button>
+
+        <div id="summary"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadExtensions);
+        document.addEventListener('DOMContentLoaded', loadSettings);
+
+        let extensions = JSON.parse(localStorage.getItem('extensions')) || {};
+        let lengthFilter = localStorage.getItem('lengthFilter') || '';
+        let durationUnit = localStorage.getItem('durationUnit') || 'seconds';
+
+        function addExtension() {
+            const extNumber = document.getElementById('extNumber').value.trim();
+            const extName = document.getElementById('extName').value.trim();
+
+            if (!extNumber || !extName) {
+                alert('Both Extension Number and Name are required.');
+                return;
+            }
+
+            extensions[extNumber] = extName;
+            localStorage.setItem('extensions', JSON.stringify(extensions));
+            document.getElementById('extNumber').value = '';
+            document.getElementById('extName').value = '';
+            loadExtensions();
+        }
+
+        function loadExtensions() {
+            const extensionList = document.getElementById('extensionList');
+            extensionList.innerHTML = '';
+            for (const [ext, name] of Object.entries(extensions)) {
+                const li = document.createElement('li');
+                li.textContent = `${ext} - ${name}`;
+                extensionList.appendChild(li);
+            }
+        }
+
+        function saveSettings() {
+            const lengthFilterInput = document.getElementById('lengthFilter').value;
+            const durationUnitInput = document.getElementById('durationUnit').value;
+
+            localStorage.setItem('lengthFilter', lengthFilterInput);
+            localStorage.setItem('durationUnit', durationUnitInput);
+
+            lengthFilter = lengthFilterInput;
+            durationUnit = durationUnitInput;
+            alert('Settings saved.');
+        }
+
+        function loadSettings() {
+            if (lengthFilter) {
+                document.getElementById('lengthFilter').value = lengthFilter;
+            }
+            document.getElementById('durationUnit').value = durationUnit;
+        }
+
+        function convertDuration(duration) {
+            switch (durationUnit) {
+                case 'minutes':
+                    return (duration / 60).toFixed(2);
+                case 'hours':
+                    return (duration / 3600).toFixed(2);
+                default:
+                    return duration;
+            }
+        }
+
+        function processCSV() {
+            const fileInput = document.getElementById('csvFileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a CSV file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const csvData = event.target.result;
+                const lines = csvData.split('\n');
+                const headers = lines[0].split(',');
+                const extensionIndex = headers.indexOf('src');
+                const destinationIndex = headers.indexOf('dst');
+                const durationIndex = headers.indexOf('duration');
+
+                if (extensionIndex === -1 || destinationIndex === -1 || durationIndex === -1) {
+                    alert('The CSV file must contain src, dst, and duration columns.');
+                    return;
+                }
+
+                const summary = {};
+
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const columns = line.split(',');
+                    const extension = columns[extensionIndex];
+                    const duration = parseInt(columns[durationIndex]) || 0;
+
+                    if (lengthFilter && extension.length !== parseInt(lengthFilter)) {
+                        continue;
+                    }
+
+                    if (!summary[extension]) {
+                        summary[extension] = {
+                            totalCalls: 0,
+                            totalDuration: 0,
+                            name: extensions[extension] || 'Unknown'
+                        };
+                    }
+
+                    summary[extension].totalCalls++;
+                    summary[extension].totalDuration += duration;
+                }
+
+                displaySummary(summary);
+            };
+
+            reader.readAsText(file);
+        }
+
+        function displaySummary(summary) {
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Extension</th>
+                            <th>Name</th>
+                            <th>Total Calls</th>
+                            <th>Total Duration (${durationUnit})</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const extension in summary) {
+                tableHTML += `
+                    <tr>
+                        <td>${extension}</td>
+                        <td>${summary[extension].name}</td>
+                        <td>${summary[extension].totalCalls}</td>
+                        <td>${convertDuration(summary[extension].totalDuration)}</td>
+                    </tr>
+                `;
+            }
+
+            tableHTML += '</tbody></table>';
+
+            document.getElementById('summary').innerHTML = tableHTML;
+        }
+
+        function downloadCSV() {
+            let csvContent = `Extension,Name,Total Calls,Total Duration (${durationUnit})\n`;
+            const summaryRows = document.querySelectorAll('#summary table tbody tr');
+
+            summaryRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = Array.from(cells).map(cell => cell.textContent).join(',');
+                csvContent += rowData + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'cdr_summary.csv');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
