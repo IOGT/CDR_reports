@@ -36,43 +36,60 @@
 
         <p>This tool was developed to be free to use by anyone, powered by <a href="https://io.gt" target="_blank">IO.GT</a>. If you have any questions or would like to contact us, please email us at <span>soporte@io.gt</span>.</p>
 
-        <div class="row">
-            <div class="col-md-6">
-                <h3>Extension Database</h3>
+        <ul class="nav nav-tabs" id="tabMenu" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="report-tab" data-toggle="tab" href="#report" role="tab">Report</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="settings-tab" data-toggle="tab" href="#settings" role="tab">Settings</a>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-4">
+            <div class="tab-pane fade show active" id="report" role="tabpanel">
+                <h3>CDR Upload</h3>
                 <div class="form-group">
-                    <input type="text" id="extNumber" class="form-control mb-2" placeholder="Extension Number" maxlength="10">
-                    <input type="text" id="extName" class="form-control mb-2" placeholder="Extension Name">
-                    <button class="btn btn-primary mb-3" onclick="addExtension()">Add Extension</button>
+                    <input type="file" id="csvFileInput" class="form-control-file mb-3" accept=".csv">
+                    <button class="btn btn-success mr-2" onclick="processCSV()">Generate Summary</button>
+                    <button class="btn btn-info" onclick="downloadCSV()">Download CSV</button>
                 </div>
-                <ul id="extensionList" class="list-group mb-4"></ul>
+                <div id="summary"></div>
+                <div id="totals" class="footer-text"></div>
             </div>
 
-            <div class="col-md-6">
-                <h3>Settings</h3>
-                <div class="form-group">
-                    <label for="lengthFilter">Filter by Extension Length:</label>
-                    <input type="number" id="lengthFilter" class="form-control mb-2" min="1" placeholder="e.g., 3 or 4">
-                    <label for="durationUnit">Duration Display Unit:</label>
-                    <select id="durationUnit" class="form-control mb-3" onchange="saveSettings()">
-                        <option value="seconds">Seconds</option>
-                        <option value="minutes">Minutes</option>
-                        <option value="hours">Hours</option>
-                    </select>
-                    <button class="btn btn-secondary" onclick="saveSettings()">Save Filter</button>
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h3>Extension Database</h3>
+                        <div class="form-group">
+                            <input type="text" id="extNumber" class="form-control mb-2" placeholder="Extension Number" maxlength="10">
+                            <input type="text" id="extName" class="form-control mb-2" placeholder="Extension Name">
+                            <button class="btn btn-primary mb-3" onclick="addExtension()">Add Extension</button>
+                        </div>
+                        <ul id="extensionList" class="list-group mb-4"></ul>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h3>Settings</h3>
+                        <div class="form-group">
+                            <label for="lengthFilter">Filter by Extension Length:</label>
+                            <input type="number" id="lengthFilter" class="form-control mb-2" min="1" placeholder="e.g., 3 or 4">
+                            <label for="durationUnit">Duration Display Unit:</label>
+                            <select id="durationUnit" class="form-control mb-3" onchange="saveSettings()">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes">Minutes</option>
+                                <option value="hours">Hours</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="saveSettings()">Save Filter</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <h3>CDR Upload</h3>
-        <div class="form-group">
-            <input type="file" id="csvFileInput" class="form-control-file mb-3" accept=".csv">
-            <button class="btn btn-success mr-2" onclick="processCSV()">Generate Summary</button>
-            <button class="btn btn-info" onclick="downloadCSV()">Download CSV</button>
-        </div>
-
-        <div id="summary"></div>
-        <div id="totals" class="footer-text"></div>
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', loadExtensions);
