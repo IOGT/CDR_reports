@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CDR File Summary</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -19,52 +20,52 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-        input[type="file"], input[type="number"], select {
-            margin-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
+        .table th {
             background-color: #f2f2f2;
+        }
+        .footer-text {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>CDR Call Summary by Extension</h1>
+        <h1 class="mb-4">CDR Call Summary by Extension</h1>
+
+        <p>This tool was developed to be free to use by anyone, powered by <a href="https://io.gt" target="_blank">IO.GT</a>. If you have any questions or would like to contact us, please email us at <span>soporte@io.gt</span>.</p>
 
         <h3>Extension Database</h3>
-        <input type="text" id="extNumber" placeholder="Extension Number" maxlength="10">
-        <input type="text" id="extName" placeholder="Extension Name">
-        <button onclick="addExtension()">Add Extension</button>
-        <ul id="extensionList"></ul>
+        <div class="form-group">
+            <input type="text" id="extNumber" class="form-control mb-2" placeholder="Extension Number" maxlength="10">
+            <input type="text" id="extName" class="form-control mb-2" placeholder="Extension Name">
+            <button class="btn btn-primary mb-3" onclick="addExtension()">Add Extension</button>
+        </div>
+        <ul id="extensionList" class="list-group mb-4"></ul>
 
         <h3>Settings</h3>
-        <label for="lengthFilter">Filter by Extension Length:</label>
-        <input type="number" id="lengthFilter" min="1" placeholder="e.g., 3 or 4">
-        <button onclick="saveSettings()">Save Filter</button>
-
-        <label for="durationUnit">Duration Display Unit:</label>
-        <select id="durationUnit" onchange="saveSettings()">
-            <option value="seconds">Seconds</option>
-            <option value="minutes">Minutes</option>
-            <option value="hours">Hours</option>
-        </select>
+        <div class="form-group">
+            <label for="lengthFilter">Filter by Extension Length:</label>
+            <input type="number" id="lengthFilter" class="form-control mb-2" min="1" placeholder="e.g., 3 or 4">
+            <label for="durationUnit">Duration Display Unit:</label>
+            <select id="durationUnit" class="form-control mb-3" onchange="saveSettings()">
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+            </select>
+            <button class="btn btn-secondary" onclick="saveSettings()">Save Filter</button>
+        </div>
 
         <h3>CDR Upload</h3>
-        <input type="file" id="csvFileInput" accept=".csv">
-        <button onclick="processCSV()">Generate Summary</button>
-        <button onclick="downloadCSV()">Download CSV</button>
+        <div class="form-group">
+            <input type="file" id="csvFileInput" class="form-control-file mb-3" accept=".csv">
+            <button class="btn btn-success mr-2" onclick="processCSV()">Generate Summary</button>
+            <button class="btn btn-info" onclick="downloadCSV()">Download CSV</button>
+        </div>
 
         <div id="summary"></div>
+        <div id="totals" class="footer-text"></div>
     </div>
 
     <script>
@@ -96,6 +97,7 @@
             extensionList.innerHTML = '';
             for (const [ext, name] of Object.entries(extensions)) {
                 const li = document.createElement('li');
+                li.className = 'list-group-item';
                 li.textContent = `${ext} - ${name}`;
                 extensionList.appendChild(li);
             }
@@ -155,6 +157,8 @@
                 }
 
                 const summary = {};
+                let totalCalls = 0;
+                let totalDuration = 0;
 
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
@@ -178,18 +182,28 @@
 
                     summary[extension].totalCalls++;
                     summary[extension].totalDuration += duration;
+                    totalCalls++;
+                    totalDuration += duration;
                 }
 
-                displaySummary(summary);
+                displaySummary(summary, totalCalls, totalDuration);
             };
 
             reader.readAsText(file);
         }
 
-        function displaySummary(summary) {
+        function displaySummary(summary, totalCalls, totalDuration) {
+            let summaryArray = Object.keys(summary).map(extension => ({
+                extension,
+                ...summary[extension]
+            }));
+
+            // Sort by total duration (descending)
+            summaryArray.sort((a, b) => b.totalDuration - a.totalDuration);
+
             let tableHTML = `
-                <table>
-                    <thead>
+                <table class="table table-bordered">
+                    <thead class="thead-light">
                         <tr>
                             <th>Extension</th>
                             <th>Name</th>
@@ -200,13 +214,13 @@
                     <tbody>
             `;
 
-            for (const extension in summary) {
+            for (const entry of summaryArray) {
                 tableHTML += `
                     <tr>
-                        <td>${extension}</td>
-                        <td>${summary[extension].name}</td>
-                        <td>${summary[extension].totalCalls}</td>
-                        <td>${convertDuration(summary[extension].totalDuration)}</td>
+                        <td>${entry.extension}</td>
+                        <td>${entry.name}</td>
+                        <td>${entry.totalCalls}</td>
+                        <td>${convertDuration(entry.totalDuration)}</td>
                     </tr>
                 `;
             }
@@ -214,6 +228,7 @@
             tableHTML += '</tbody></table>';
 
             document.getElementById('summary').innerHTML = tableHTML;
+            document.getElementById('totals').innerHTML = `Total Calls: ${totalCalls}, Total Duration (${durationUnit}): ${convertDuration(totalDuration)}`;
         }
 
         function downloadCSV() {
@@ -230,7 +245,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', 'cdr_summary.csv');
+            a.setAttribute('download', 'cdr_summary_powered_by_io.gt.csv');
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
