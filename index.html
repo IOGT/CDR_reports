@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CDR File Summary</title>
+    <title>CDR File Summary report by IO.GT</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -31,6 +31,17 @@
     </style>
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <a class="navbar-brand" href="#">CDR Report</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="https://io.gt" target="_blank">IO.GT</a></li>
+                <li class="nav-item"><a class="nav-link" href="https://pbx.gt" target="_blank">PBX.GT</a></li>
+                <li class="nav-item"><a class="nav-link" href="https://wha.gt" target="_blank">WhatsappCRM</a></li>
+            </ul>
+        </div>
+    </nav>
+
     <div class="container">
         <h1 class="mb-4">CDR Call Summary by Extension</h1>
 
@@ -88,6 +99,12 @@
         </div>
     </div>
 
+    <footer class="footer mt-5">
+        <div class="container text-center">
+            <p class="footer-text">Powered by <a href="https://io.gt" target="_blank">IO.GT</a> - Your partner in innovation.</p>
+        </div>
+    </footer>
+
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -120,10 +137,16 @@
             extensionList.innerHTML = '';
             for (const [ext, name] of Object.entries(extensions)) {
                 const li = document.createElement('li');
-                li.className = 'list-group-item';
-                li.textContent = `${ext} - ${name}`;
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `${ext} - ${name} <button class="btn btn-danger btn-sm" onclick="removeExtension('${ext}')">Remove</button>`;
                 extensionList.appendChild(li);
             }
+        }
+
+        function removeExtension(extNumber) {
+            delete extensions[extNumber];
+            localStorage.setItem('extensions', JSON.stringify(extensions));
+            loadExtensions();
         }
 
         function saveSettings() {
