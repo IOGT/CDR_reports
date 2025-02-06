@@ -36,25 +36,31 @@
 
         <p>This tool was developed to be free to use by anyone, powered by <a href="https://io.gt" target="_blank">IO.GT</a>. If you have any questions or would like to contact us, please email us at <span>soporte@io.gt</span>.</p>
 
-        <h3>Extension Database</h3>
-        <div class="form-group">
-            <input type="text" id="extNumber" class="form-control mb-2" placeholder="Extension Number" maxlength="10">
-            <input type="text" id="extName" class="form-control mb-2" placeholder="Extension Name">
-            <button class="btn btn-primary mb-3" onclick="addExtension()">Add Extension</button>
-        </div>
-        <ul id="extensionList" class="list-group mb-4"></ul>
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Extension Database</h3>
+                <div class="form-group">
+                    <input type="text" id="extNumber" class="form-control mb-2" placeholder="Extension Number" maxlength="10">
+                    <input type="text" id="extName" class="form-control mb-2" placeholder="Extension Name">
+                    <button class="btn btn-primary mb-3" onclick="addExtension()">Add Extension</button>
+                </div>
+                <ul id="extensionList" class="list-group mb-4"></ul>
+            </div>
 
-        <h3>Settings</h3>
-        <div class="form-group">
-            <label for="lengthFilter">Filter by Extension Length:</label>
-            <input type="number" id="lengthFilter" class="form-control mb-2" min="1" placeholder="e.g., 3 or 4">
-            <label for="durationUnit">Duration Display Unit:</label>
-            <select id="durationUnit" class="form-control mb-3" onchange="saveSettings()">
-                <option value="seconds">Seconds</option>
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-            </select>
-            <button class="btn btn-secondary" onclick="saveSettings()">Save Filter</button>
+            <div class="col-md-6">
+                <h3>Settings</h3>
+                <div class="form-group">
+                    <label for="lengthFilter">Filter by Extension Length:</label>
+                    <input type="number" id="lengthFilter" class="form-control mb-2" min="1" placeholder="e.g., 3 or 4">
+                    <label for="durationUnit">Duration Display Unit:</label>
+                    <select id="durationUnit" class="form-control mb-3" onchange="saveSettings()">
+                        <option value="seconds">Seconds</option>
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="saveSettings()">Save Filter</button>
+                </div>
+            </div>
         </div>
 
         <h3>CDR Upload</h3>
