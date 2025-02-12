@@ -35,7 +35,7 @@
                 }
                 
                 const delimiter = rows[0].includes(';') ? ';' : ',';
-                const headers = rows[0].split(delimiter).map(h => h.trim());
+                const headers = rows[0].split(delimiter).map(h => h.replace(/"/g, '').trim());
                 const durationIndex = headers.findIndex(h => h.toLowerCase() === "duración");
                 if (durationIndex === -1) {
                     alert("No se encontró la columna 'Duración' en el archivo CSV.");
@@ -44,9 +44,9 @@
                 
                 let totalCalls = 0, totalSeconds = 0;
                 rows.slice(1).forEach(row => {
-                    const columns = row.split(delimiter);
+                    const columns = row.split(delimiter).map(col => col.replace(/"/g, '').trim());
                     if (columns.length > durationIndex) {
-                        const duration = parseInt(columns[durationIndex].trim(), 10);
+                        const duration = parseInt(columns[durationIndex], 10);
                         if (!isNaN(duration)) {
                             totalSeconds += duration;
                             totalCalls++;
