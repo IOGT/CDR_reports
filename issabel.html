@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen de Llamadas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">Subir Archivo CSV de Llamadas</h2>
+        <input type="file" id="fileInput" class="form-control mb-3" accept=".csv">
+        <button class="btn btn-primary" onclick="processFile()">Procesar Archivo</button>
+        
+        <div class="mt-4" id="summary"></div>
+    </div>
+
+    <script>
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert("Por favor, selecciona un archivo CSV.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const content = e.target.result;
+                let rows = content.split('\n');
+                if (rows.length < 2) {
+                    alert("El archivo CSV parece estar vacío o mal formado.");
+                    return;
+                }
+                
+                const delimiter = rows[0].includes(';') ? ';' : ',';
+                const headers = rows[0].split(delimiter).map(h => h.trim());
+                const durationIndex = headers.findIndex(h => h.toLowerCase() === "duración");
+                if (durationIndex === -1) {
+                    alert("No se encontró la columna 'Duración' en el archivo CSV.");
+                    return;
+                }
+                
+                let totalCalls = 0, totalSeconds = 0;
+                rows.slice(1).forEach(row => {
+                    const columns = row.split(delimiter);
+                    if (columns.length > durationIndex) {
+                        const duration = parseInt(columns[durationIndex].trim(), 10);
+                        if (!isNaN(duration)) {
+                            totalSeconds += duration;
+                            totalCalls++;
+                        }
+                    }
+                });
+
+                const totalMinutes = (totalSeconds / 60).toFixed(2);
+                const totalHours = (totalMinutes / 60).toFixed(2);
+                
+                document.getElementById('summary').innerHTML = `
+                    <h4>Resumen:</h4>
+                    <ul class="list-group">
+                        <li class="list-group-item">Total de llamadas: <strong>${totalCalls}</strong></li>
+                        <li class="list-group-item">Total de segundos: <strong>${totalSeconds}</strong></li>
+                        <li class="list-group-item">Total de minutos: <strong>${totalMinutes}</strong></li>
+                        <li class="list-group-item">Total de horas: <strong>${totalHours}</strong></li>
+                    </ul>`;
+            };
+
+            reader.readAsText(file);
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
