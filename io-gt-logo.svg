@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" style="background: transparent">
+  <!-- Blue Network Structure -->
+  <g fill="#3b82f6" stroke="#3b82f6" stroke-width="1.5">
+    <!-- Outer points -->
+    <circle cx="20" cy="20" r="2"/>
+    <circle cx="35" cy="15" r="2"/>
+    <circle cx="35" cy="25" r="2"/>
+    <circle cx="20" cy="30" r="2"/>
+    <circle cx="5" cy="25" r="2"/>
+    <circle cx="5" cy="15" r="2"/>
+    
+    <!-- Connections -->
+    <line x1="20" y1="20" x2="35" y2="15"/>
+    <line x1="35" y1="15" x2="35" y2="25"/>
+    <line x1="35" y1="25" x2="20" y2="30"/>
+    <line x1="20" y1="30" x2="5" y2="25"/>
+    <line x1="5" y1="25" x2="5" y2="15"/>
+    <line x1="5" y1="15" x2="20" y2="20"/>
+  </g>
+  
+  <!-- IO Circle -->
+  <circle cx="20" cy="20" r="12" fill="#3b82f6"/>
+  <text x="20" y="24" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">IO</text>
+  
+  <!-- Green Bird -->
+  <g>
+    <path d="M50 15 Q55 10 60 12 Q65 15 70 10 Q75 8 80 12" fill="#22c55e"/>
+    <ellipse cx="65" cy="18" rx="4" ry="2" fill="#ef4444"/>
+    <circle cx="67" cy="17" r="0.5" fill="#1f2937"/>
+  </g>
+  
+  <!-- GT Letters -->
+  <text x="85" y="35" fill="#3b82f6" font-family="Arial, sans-serif" font-size="24" font-weight="bold">GT</text>
+  
+  <!-- Circuit Lines -->
+  <g stroke="#1f2937" stroke-width="1" fill="none">
+    <line x1="120" y1="20" x2="160" y2="20"/>
+    <line x1="125" y1="25" x2="155" y2="25"/>
+    <line x1="130" y1="30" x2="150" y2="30"/>
+    <circle cx="135" cy="20" r="1" fill="#1f2937"/>
+    <circle cx="140" cy="25" r="1" fill="#1f2937"/>
+    <circle cx="145" cy="30" r="1" fill="#1f2937"/>
+  </g>
+  
+  <!-- Website -->
+  <text x="170" y="45" fill="#3b82f6" font-family="Arial, sans-serif" font-size="6">io.gt</text>
+</svg>

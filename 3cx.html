@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3CX – Reporte de Minutos</title>
+  <!-- PapaParse (CSV) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- jsPDF + autotable -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --panel:#0b1224; --muted:#94a3b8; --fg:#e5e7eb; --accent:#22c55e; }
+    *{box-sizing:border-box}
+    body{margin:0;padding:24px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial;background:linear-gradient(180deg,#0b1020,#0f172a);color:var(--fg)}
+    h1{margin:0 0 16px;font-size:24px}
+    .app{max-width:1100px;margin:0 auto}
+    .panel{background:var(--panel);border:1px solid #1f2937;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .row{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:920px){.row.cols-2{grid-template-columns:1fr 1fr}}
+    .controls{display:grid;gap:12px}
+    .controls label{font-size:12px;color:var(--muted)}
+    .controls input[type=file],select,button{width:100%;background:#0f172a;color:var(--fg);border:1px solid #334155;border-radius:10px;padding:10px 12px}
+    .btns{display:flex;flex-wrap:wrap;gap:10px}
+    button{cursor:pointer;font-weight:600}
+    .btn-primary{background:var(--accent);color:#062e18;border-color:#16a34a}
+    .btn-secondary{background:#0f172a;border-color:#475569}
+    .stat{background:#0b1224;border:1px dashed #334155;padding:12px;border-radius:12px}
+    .stat h3{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+    .stat .val{font-size:22px;font-weight:800}
+    .footer{opacity:.7;font-size:12px;margin-top:8px}
+    .table{width:100%;border-collapse:collapse;margin-top:8px}
+    .table th,.table td{border-bottom:1px solid #1f2937;padding:8px;text-align:left}
+    .table th{color:var(--muted);font-size:12px;font-weight:600}
+    .note{font-size:12px;color:var(--muted)}
+    .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid #334155;background:#0f172a;color:#93c5fd}
+    .debug{font-size:12px;color:#a5b4fc;background:#0b1020;border:1px dashed #334155;border-radius:10px;padding:8px;white-space:pre-wrap}
+    .footer-text{text-align:center;font-size:12px;color:var(--muted);margin-top:16px;padding:8px}
+    .footer-text a{color:var(--accent);text-decoration:none;font-weight:600}
+    .footer-text a:hover{text-decoration:underline}
+    .logo-container{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+    .logo{width:120px;height:auto;cursor:pointer;transition:transform 0.2s ease}
+    .logo:hover{transform:scale(1.05)}
+    .file-list{background:#0b1020;border:1px solid #1f2937;border-radius:8px;padding:8px;max-height:120px;overflow-y:auto}
+    .file-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1f2937}
+    .file-item:last-child{border-bottom:none}
+    .file-name{flex:1;margin-right:8px;word-break:break-all}
+    .file-status{font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap}
+    .status-pending{background:#374151;color:#9ca3af}
+    .status-processing{background:#1f2937;color:#60a5fa;animation:pulse 2s infinite}
+    .status-success{background:#064e3b;color:#10b981}
+    .status-error{background:#7f1d1d;color:#f87171}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="logo-container">
+      <a href="https://www.io.gt/" target="_blank">
+        <img class="logo" src="logo.png" alt="IO.GT Logo" />
+      </a>
+      <h1>3CX – Minutos facturables</h1>
+    </div>    <div class="panel">
+      <div class="row cols-2">
+        <div class="controls">
+          <div>
+            <label>Selecciona los archivos CSV exportados de 3CX</label>
+            <input id="file" type="file" accept=".csv" multiple />
+            <div class="note">Puedes seleccionar múltiples archivos CSV con el mismo formato. Deben incluir <strong>Total Duration</strong> (HH:MM:SS), <strong>Caller Display Name</strong> / <strong>Caller ID</strong> y <strong>Call Time</strong>.</div>
+            <div id="file-list" class="file-list" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);"></div>
+          </div>
+          <div class="row cols-2">
+            <div>
+              <label>Columna de Duración</label>
+              <select id="sel-duration"></select>
+            </div>
+            <div>
+              <label>Tipo de reporte</label>
+              <select id="sel-report-type">
+                <option value="agent" selected>Por Agente</option>
+                <option value="trunk">Por Trunk</option>
+              </select>
+            </div>
+          </div>
+          <div class="row cols-2">
+            <div>
+              <label>Columna de Agente</label>
+              <select id="sel-agent"></select>
+            </div>
+            <div>
+              <label>Columna de Trunk</label>
+              <select id="sel-trunk"></select>
+            </div>
+          </div>
+          <div class="row cols-2">
+            <div>
+              <label>Columna de Fecha/Hora</label>
+              <select id="sel-datetime"></select>
+            </div>
+            <div>
+              <label>Método de facturación</label>
+              <select id="sel-rounding">
+                <option value="ceil" selected>Facturación por minuto (redondeo hacia arriba)</option>
+                <option value="second">Facturación por segundo</option>
+              </select>
+            </div>
+          </div>
+          <div class="btns">
+            <button id="btn-process" class="btn-primary">Procesar CSV</button>
+            <button id="btn-pdf" class="btn-secondary" disabled>Descargar PDF</button>
+            <span id="tag-mode" class="tag">Modo: <strong>por minuto (ceil)</strong></span>
+          </div>
+          <div id="debug" class="debug" style="display:none"></div>
+        </div>
+        <div>
+          <div class="row cols-2">
+            <div class="stat"><h3>Total de llamadas</h3><div class="val" id="stat-calls">—</div></div>
+            <div class="stat"><h3>Total de minutos</h3><div class="val" id="stat-minutes">—</div></div>
+          </div>
+          <div class="row cols-2" style="margin-top:12px">
+            <div class="stat"><h3>Agentes</h3><div class="val" id="stat-agents">—</div></div>
+            <div class="stat"><h3>Periodo(s) detectados</h3><div class="val" id="stat-months">—</div></div>
+          </div>
+          <div class="footer">Si la autodetección no coincide con tu exportación, selecciona manualmente en los desplegables.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <h2 style="margin-top:0" id="table-title">Minutos por agente</h2>
+      <table class="table" id="tbl-agents">
+        <thead><tr><th>#</th><th id="table-header">Agente</th><th>Minutos</th><th>Llamadas</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="footer">Todo ocurre en tu navegador (no sube datos a ningún servidor).</div>
+    <p class="footer-text">Powered by <a href="https://io.gt" target="_blank">IO.GT</a> - Your partner in innovation.</p>
+  </div>
+
+<script>
+(() => {
+  const fileInput     = document.getElementById('file');
+  const selDuration   = document.getElementById('sel-duration');
+  const selAgent      = document.getElementById('sel-agent');
+  const selTrunk      = document.getElementById('sel-trunk');
+  const selReportType = document.getElementById('sel-report-type');
+  const selDatetime   = document.getElementById('sel-datetime');
+  const selRounding   = document.getElementById('sel-rounding');
+  const tagMode       = document.getElementById('tag-mode');
+  const btnProcess    = document.getElementById('btn-process');
+  const btnPdf        = document.getElementById('btn-pdf');
+
+  const tableTitle    = document.getElementById('table-title');
+  const tableHeader   = document.getElementById('table-header');
+
+  const statCalls   = document.getElementById('stat-calls');
+  const statMinutes = document.getElementById('stat-minutes');
+  const statAgents  = document.getElementById('stat-agents');
+  const statMonths  = document.getElementById('stat-months');
+
+  const tblAgentsBody = document.querySelector('#tbl-agents tbody');
+  const debugEl = document.getElementById('debug');
+  const fileListEl = document.getElementById('file-list');
+
+  let rows = []; // parsed rows from all files
+  let processedFiles = []; // track processed files
+  let totalFilesProcessed = 0;
+
+  // Preferencias solicitadas
+  const DUR_PREFS = ['Total Duration','total duration','total time','total call duration','duración total','tiempo total','duration','call duration','talk time'];
+  const AGENT_PREFS = ['Caller Display Name','Caller ID','agent','agente','extension','extensión','from name','from','caller name','caller','src name','src'];
+  const TRUNK_PREFS = ['Trunk','trunk','trunk name','trunk number','troncal','línea','line'];
+  const DT_PREFS = ['Call Time','call time','start time','start','date/time','date time','datetime','fecha/hora','fecha hora','timestamp','date','time','call start time'];
+
+  const norm = s => String(s||'').trim();
+  const lower = s => norm(s).toLowerCase();
+
+  function findHeader(headers, candidates){
+    // 1) exact (case-insensitive)
+    for (const cand of candidates){
+      const hit = headers.find(h => lower(h) === lower(cand));
+      if (hit) return hit;
+    }
+    // 2) contains (case-insensitive)
+    for (const cand of candidates){
+      const lc = lower(cand);
+      const hit = headers.find(h => lower(h).includes(lc));
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  function setSelectors(headers){
+    // Limpiar espacios en blanco de los headers
+    const cleanHeaders = headers.map(h => h ? h.trim() : h);
+    
+    selDuration.innerHTML = cleanHeaders.map((h, i) => `<option value="${headers[i]}">${h}</option>`).join('');
+    selAgent.innerHTML    = cleanHeaders.map((h, i) => `<option value="${headers[i]}">${h}</option>`).join('');
+    selTrunk.innerHTML    = cleanHeaders.map((h, i) => `<option value="${headers[i]}">${h}</option>`).join('');
+    selDatetime.innerHTML = cleanHeaders.map((h, i) => `<option value="${headers[i]}">${h}</option>`).join('');
+
+    // Defaults exactos requeridos - buscar en headers originales
+    const dur = findHeader(headers, ['Total Duration']);
+    const agt = findHeader(headers, ['Caller Display Name','Caller ID']);
+    const trk = findHeader(headers, ['Trunk']);
+    const dt  = findHeader(headers, ['Call Time']);
+
+    selDuration.value = dur || findHeader(headers, DUR_PREFS) || headers[0] || '';
+    selAgent.value    = agt || findHeader(headers, AGENT_PREFS) || headers[0] || '';
+    selTrunk.value    = trk || findHeader(headers, TRUNK_PREFS) || headers[0] || '';
+    selDatetime.value = dt  || findHeader(headers, DT_PREFS)   || headers[0] || '';
+
+    // Ocultar debug una vez que las columnas están configuradas
+    debugEl.style.display = 'none';
+  }
+
+  function hhmmssToSeconds(s){
+    if (s == null || s === '') return NaN;
+    s = String(s).trim();
+    
+    let m = s.match(/^(\d{1,2}):(\d{2}):(\d{2})$/); // HH:MM:SS
+    if (m){ const [,hh,mm,ss] = m; return (+hh)*3600 + (+mm)*60 + (+ss); }
+    m = s.match(/^(\d{1,2}):(\d{2})$/); // M:SS
+    if (m){ const [,mm,ss] = m; return (+mm)*60 + (+ss); }
+    if (/^\d+(?:[\.,]\d+)?$/.test(s)) return parseFloat(s.toString().replace(',', '.')); // plain seconds
+    
+    return NaN;
+  }
+
+  function parseDateAny(s){
+    if (!s) return null;
+    const d = new Date(s); if (!isNaN(d)) return d;
+    const m = String(s).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (m){ let [,dd,MM,yyyy,hh,mm,ss] = m; ss = ss || '00'; const y = yyyy.length === 2 ? 2000 + (+yyyy) : (+yyyy); return new Date(y,(+MM)-1,(+dd),(+hh),(+mm),(+ss)); }
+    return null;
+  }
+
+  const yyyymm = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+  function aggregate(data, durationKey, groupByKey, dtKey, mode){
+    const perGroup = new Map();
+    const months = new Set();
+    let totalCalls = 0, totalMinutes = 0; const groupSet = new Set();
+
+    for (const row of data){
+      const secs = hhmmssToSeconds(row[durationKey]);
+      if (isNaN(secs)) continue;
+      
+      const billed = (mode === 'ceil') ? Math.ceil(secs/60) : (secs/60);
+      const groupValue = String(row[groupByKey] ?? 'Unknown') || 'Unknown';
+      const dt = parseDateAny(row[dtKey]); if (dt) months.add(yyyymm(dt));
+
+      if (!perGroup.has(groupValue)) perGroup.set(groupValue, { minutes:0, calls:0 });
+      perGroup.get(groupValue).minutes += billed; perGroup.get(groupValue).calls += 1;
+      totalCalls += 1; totalMinutes += billed; groupSet.add(groupValue);
+    }
+    
+    return { perGroup, totalCalls, totalMinutes, groups: groupSet.size, months: Array.from(months).sort() };
+  }
+
+  function formatMinutes(val){
+    return selRounding.value === 'ceil'
+      ? Math.round(val).toLocaleString('es-GT')
+      : (Math.round(val*100)/100).toLocaleString('es-GT', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+
+  function renderStats(agg, reportType){
+    statCalls.textContent   = agg.totalCalls.toLocaleString('es-GT');
+    statMinutes.textContent = formatMinutes(agg.totalMinutes);
+    statAgents.textContent  = agg.groups.toLocaleString('es-GT');
+    statMonths.textContent  = agg.months.length ? agg.months.join(', ') : '—';
+    
+    // Actualizar títulos dinámicos
+    const groupLabel = reportType === 'trunk' ? 'Trunks' : 'Agentes';
+    statAgents.parentElement.querySelector('h3').textContent = groupLabel;
+  }
+
+  function renderTable(perGroup, reportType){
+    const groupLabel = reportType === 'trunk' ? 'trunk' : 'agent';
+    const data = Array.from(perGroup.entries()).map(([group,v]) => ({group, minutes:v.minutes, calls:v.calls}))
+      .sort((a,b) => b.minutes - a.minutes);
+    tblAgentsBody.innerHTML = data.map((r,i) => `
+      <tr><td>${i+1}</td><td>${escapeHtml(r.group)}</td><td>${formatMinutes(r.minutes)}</td><td>${r.calls.toLocaleString('es-GT')}</td></tr>
+    `).join('');
+    
+    // Actualizar títulos de la tabla
+    const headerLabel = reportType === 'trunk' ? 'Trunk' : 'Agente';
+    const titleLabel = reportType === 'trunk' ? 'trunks' : 'agente';
+    tableTitle.textContent = `Minutos por ${titleLabel}`;
+    tableHeader.textContent = headerLabel;
+  }
+
+  const escapeHtml = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+
+  // Funciones para manejar múltiples archivos
+  function showFileList(files) {
+    if (files.length === 0) {
+      fileListEl.style.display = 'none';
+      return;
+    }
+    
+    fileListEl.style.display = 'block';
+    fileListEl.innerHTML = Array.from(files).map((file, index) => `
+      <div class="file-item" data-index="${index}">
+        <span class="file-name">${escapeHtml(file.name)}</span>
+        <span class="file-status status-pending">Pendiente</span>
+      </div>
+    `).join('');
+  }
+
+  function updateFileStatus(index, status, message = '') {
+    const fileItem = fileListEl.querySelector(`[data-index="${index}"]`);
+    if (!fileItem) return;
+    
+    const statusEl = fileItem.querySelector('.file-status');
+    statusEl.className = `file-status status-${status}`;
+    
+    switch(status) {
+      case 'processing': statusEl.textContent = 'Procesando...'; break;
+      case 'success': statusEl.textContent = `✓ ${message || 'Completado'}`; break;
+      case 'error': statusEl.textContent = `✗ ${message || 'Error'}`; break;
+      default: statusEl.textContent = 'Pendiente';
+    }
+  }
+
+  function updateProcessingStats() {
+    if (totalFilesProcessed > 0) {
+      debugEl.style.display = 'block';
+      debugEl.textContent = `Archivos procesados: ${totalFilesProcessed}\nFilas consolidadas: ${rows.length}`;
+    }
+  }
+
+  // Función para convertir imagen a base64
+  function getImageBase64(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  async function makePdf(){
+    const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit:'mm', format:'a4' });
+    const reportType = selReportType.value;
+    const groupLabel = reportType === 'trunk' ? 'Trunks' : 'Agentes';
+    const headerLabel = reportType === 'trunk' ? 'Trunk' : 'Agente';
+    
+    const title = totalFilesProcessed > 1 
+      ? `Reporte consolidado de uso 3CX (${totalFilesProcessed} archivos) - Por ${groupLabel}` 
+      : `Reporte de uso 3CX (minutos facturables) - Por ${groupLabel}`;
+    const gen = new Date();
+    
+    // Agregar logo en la esquina superior derecha
+    try {
+      const logoBase64 = await getImageBase64('logo.png');
+      // Usar altura fija y ancho automático para mantener proporciones
+      const logoHeight = 12; // altura fija en mm
+      const logoX = doc.internal.pageSize.getWidth() - 45; // ajustar posición X para dar más espacio
+      doc.addImage(logoBase64, 'PNG', logoX, 8, 0, logoHeight); // width = 0 significa auto
+    } catch (e) {
+      console.log('No se pudo agregar el logo al PDF:', e);
+    }
+    
+    doc.setFontSize(16); doc.text(title, 12, 16);
+    doc.setFontSize(10); doc.text(`Generado: ${gen.toLocaleString('es-GT')}`, 12, 22);
+    const modeText = selRounding.value === 'ceil' ? 'Facturación por minuto (redondeo hacia arriba)' : 'Facturación por segundo';
+    doc.text(`Modo de facturación: ${modeText}`, 12, 28);
+    doc.setFontSize(11);
+    doc.text(`Total de llamadas: ${statCalls.textContent}`, 12, 36);
+    doc.text(`Total de minutos: ${statMinutes.textContent}`, 12, 42);
+    doc.text(`${groupLabel}: ${statAgents.textContent}`, 12, 48);
+    doc.text(`Periodo(s): ${statMonths.textContent}`, 12, 54);
+    
+    if (totalFilesProcessed > 1) {
+      doc.text(`Archivos procesados: ${totalFilesProcessed}`, 12, 60);
+    }
+
+    const tableRows = Array.from(tblAgentsBody.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent));
+    const tableStartY = totalFilesProcessed > 1 ? 68 : 62;
+    doc.autoTable({ startY: tableStartY, head: [['#',headerLabel,'Minutos','Llamadas']], body: tableRows, styles:{fontSize:9}, theme:'grid', margin:{left:12,right:12}, headStyles:{fillColor:[34,197,94], textColor:20} });
+    
+    // Agregar footer de IO.GT
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Powered by IO.GT - Your partner in innovation', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.setTextColor(59, 130, 246); // Color azul del logo
+    doc.textWithLink('www.io.gt', pageWidth / 2, pageHeight - 6, { url: 'https://www.io.gt/', align: 'center' });
+    
+    doc.save(`reporte_3cx_minutos_${reportType}.pdf`);
+  }
+
+  // --- CSV parsing helpers (con reintentos de delimitador) ---
+  function parseWith(file, delimiter){
+    return new Promise((resolve,reject) => {
+      Papa.parse(file, { header:true, skipEmptyLines:'greedy', delimiter: delimiter || '', complete: res => resolve(res), error: reject });
+    });
+  }
+
+  async function parseFile(file, fileIndex = 0) {
+    updateFileStatus(fileIndex, 'processing');
+    
+    const tries = ['', ';', '\t', ',']; // auto, punto y coma, tab, coma explícita
+    let res = null, fields = [];
+    
+    for (const d of tries) {
+      try { 
+        res = await parseWith(file, d); 
+        fields = (res.meta && res.meta.fields) ? res.meta.fields : []; 
+      } catch(e) { 
+        res = null; fields = []; 
+      }
+      if (fields && fields.length > 1) break;
+    }
+    
+    if (!res || !fields || fields.length <= 1) {
+      updateFileStatus(fileIndex, 'error', 'Formato inválido');
+      throw new Error(`No se detectaron columnas válidas en ${file.name}`);
+    }
+    
+    // Filter out summary/totals rows and empty rows
+    const fileRows = (res.data || []).filter(r => {
+      if (!r || Object.keys(r).length === 0) return false;
+      
+      // Skip rows that start with summary indicators
+      const firstColumn = Object.values(r)[0] || '';
+      const summaryIndicators = ['totals', 'total', 'summary', 'resumen', 'suma'];
+      if (summaryIndicators.some(indicator => 
+        firstColumn.toString().toLowerCase().includes(indicator)
+      )) return false;
+      
+      return true;
+    });
+    
+    updateFileStatus(fileIndex, 'success', `${fileRows.length} filas`);
+    return { fields, rows: fileRows };
+  }
+
+  async function parseMultipleFiles(files) {
+    rows = []; // Reset consolidated rows
+    totalFilesProcessed = 0;
+    let allFields = null;
+    
+    debugEl.style.display = 'block';
+    debugEl.textContent = 'Iniciando procesamiento de archivos...';
+    
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const result = await parseFile(files[i], i);
+        
+        // Use fields from first successful file
+        if (!allFields) {
+          allFields = result.fields;
+          setSelectors(allFields);
+        }
+        
+        // Consolidate rows from all files
+        rows = rows.concat(result.rows);
+        totalFilesProcessed++;
+        updateProcessingStats();
+        
+      } catch (error) {
+        console.error(`Error procesando ${files[i].name}:`, error);
+        // Continue with other files even if one fails
+      }
+    }
+    
+    if (totalFilesProcessed === 0) {
+      alert('No se pudo procesar ningún archivo CSV. Verifica que tengan el formato correcto.');
+      return;
+    }
+    
+    debugEl.textContent = `✓ Procesamiento completado: ${totalFilesProcessed} archivo(s), ${rows.length} filas consolidadas`;
+  }
+
+  // --- Eventos ---
+  fileInput.addEventListener('change', async (e) => { 
+    const files = e.target.files; 
+    if (!files || files.length === 0) return; 
+    
+    showFileList(files);
+    
+    if (files.length === 1) {
+      // Single file - use original logic for better UX
+      try {
+        const result = await parseFile(files[0], 0);
+        rows = result.rows;
+        setSelectors(result.fields);
+        totalFilesProcessed = 1;
+        updateProcessingStats();
+      } catch (error) {
+        alert(error.message);
+      }
+    } else {
+      // Multiple files - use consolidated logic
+      await parseMultipleFiles(files);
+    }
+  });
+
+  selRounding.addEventListener('change', () => { tagMode.innerHTML = `Modo: <strong>${selRounding.value === 'ceil' ? 'por minuto (ceil)' : 'por segundo'}</strong>`; });
+  
+  selReportType.addEventListener('change', () => {
+    const reportType = selReportType.value;
+    const headerLabel = reportType === 'trunk' ? 'Trunk' : 'Agente';
+    const titleLabel = reportType === 'trunk' ? 'trunks' : 'agente';
+    tableTitle.textContent = `Minutos por ${titleLabel}`;
+    tableHeader.textContent = headerLabel;
+  });
+
+  btnProcess.addEventListener('click', () => {
+    if (!rows.length){ alert('Primero selecciona un CSV.'); return; }
+    const durKey = selDuration.value;
+    const dtKey = selDatetime.value; 
+    const mode = selRounding.value;
+    const reportType = selReportType.value;
+    
+    // Determinar la columna de agrupación según el tipo de reporte
+    const groupByKey = reportType === 'trunk' ? selTrunk.value : selAgent.value;
+    
+    if (!durKey || !groupByKey || !dtKey){ alert('Selecciona las columnas requeridas.'); return; }
+    const agg = aggregate(rows, durKey, groupByKey, dtKey, mode);
+    if (agg.totalCalls === 0){ alert('No se encontraron duraciones válidas. Verifica que la columna de duración tenga formato HH:MM:SS (ej.: "Total Duration").'); return; }
+    renderStats(agg, reportType); renderTable(agg.perGroup, reportType); btnPdf.disabled = false;
+  });
+
+  btnPdf.addEventListener('click', makePdf);
+})();
+</script>
+</body>
+</html>
