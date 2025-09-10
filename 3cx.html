@@ -9,6 +9,8 @@
   <!-- jsPDF + autotable -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root { --bg:#0f172a; --panel:#0b1224; --muted:#94a3b8; --fg:#e5e7eb; --accent:#22c55e; }
     *{box-sizing:border-box}
@@ -108,6 +110,7 @@
           <div class="btns">
             <button id="btn-process" class="btn-primary">Procesar CSV</button>
             <button id="btn-pdf" class="btn-secondary" disabled>Descargar PDF</button>
+            <button id="btn-excel" class="btn-secondary" disabled>Descargar Excel</button>
             <span id="tag-mode" class="tag">Modo: <strong>por minuto (ceil)</strong></span>
           </div>
           <div id="debug" class="debug" style="display:none"></div>
@@ -150,6 +153,7 @@
   const tagMode       = document.getElementById('tag-mode');
   const btnProcess    = document.getElementById('btn-process');
   const btnPdf        = document.getElementById('btn-pdf');
+  const btnExcel      = document.getElementById('btn-excel');
 
   const tableTitle    = document.getElementById('table-title');
   const tableHeader   = document.getElementById('table-header');
@@ -401,6 +405,80 @@
     doc.save(`reporte_3cx_minutos_${reportType}.pdf`);
   }
 
+  function makeExcel(){
+    const reportType = selReportType.value;
+    const groupLabel = reportType === 'trunk' ? 'Trunks' : 'Agentes';
+    const headerLabel = reportType === 'trunk' ? 'Trunk' : 'Agente';
+    
+    const title = totalFilesProcessed > 1 
+      ? `Reporte consolidado de uso 3CX (${totalFilesProcessed} archivos) - Por ${groupLabel}` 
+      : `Reporte de uso 3CX (minutos facturables) - Por ${groupLabel}`;
+    const gen = new Date();
+    const modeText = selRounding.value === 'ceil' ? 'Facturación por minuto (redondeo hacia arriba)' : 'Facturación por segundo';
+    
+    // Crear workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Datos del resumen
+    const summaryData = [
+      ['Reporte de uso 3CX - Minutos facturables'],
+      [`Por: ${groupLabel}`],
+      [`Generado: ${gen.toLocaleString('es-GT')}`],
+      [`Modo de facturación: ${modeText}`],
+      [''],
+      ['RESUMEN'],
+      ['Total de llamadas:', statCalls.textContent],
+      ['Total de minutos:', statMinutes.textContent],
+      [`${groupLabel}:`, statAgents.textContent],
+      ['Periodo(s):', statMonths.textContent]
+    ];
+    
+    if (totalFilesProcessed > 1) {
+      summaryData.push(['Archivos procesados:', totalFilesProcessed.toString()]);
+    }
+    
+    // Datos de la tabla
+    const tableData = [
+      [''],
+      [`DETALLE POR ${groupLabel.toUpperCase()}`],
+      ['#', headerLabel, 'Minutos', 'Llamadas']
+    ];
+    
+    const tableRows = Array.from(tblAgentsBody.querySelectorAll('tr')).map(tr => 
+      Array.from(tr.children).map(td => td.textContent)
+    );
+    
+    tableData.push(...tableRows);
+    
+    // Combinar todos los datos
+    const allData = [...summaryData, ...tableData];
+    
+    // Crear hoja de trabajo
+    const ws = XLSX.utils.aoa_to_sheet(allData);
+    
+    // Configurar anchos de columna
+    ws['!cols'] = [
+      { wch: 30 }, // Columna A - más ancha para descripción
+      { wch: 20 }, // Columna B
+      { wch: 15 }, // Columna C
+      { wch: 15 }  // Columna D
+    ];
+    
+    // Aplicar estilos básicos (títulos en negrita)
+    if (ws['A1']) ws['A1'].s = { font: { bold: true, sz: 14 } };
+    if (ws['A6']) ws['A6'].s = { font: { bold: true } };
+    
+    const detailRowIndex = summaryData.length + 2; // +2 por las filas vacías
+    const detailCellRef = XLSX.utils.encode_cell({ r: detailRowIndex, c: 0 });
+    if (ws[detailCellRef]) ws[detailCellRef].s = { font: { bold: true } };
+    
+    // Agregar la hoja al workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte 3CX');
+    
+    // Descargar el archivo
+    XLSX.writeFile(wb, `reporte_3cx_minutos_${reportType}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   // --- CSV parsing helpers (con reintentos de delimitador) ---
   function parseWith(file, delimiter){
     return new Promise((resolve,reject) => {
@@ -531,10 +609,13 @@
     if (!durKey || !groupByKey || !dtKey){ alert('Selecciona las columnas requeridas.'); return; }
     const agg = aggregate(rows, durKey, groupByKey, dtKey, mode);
     if (agg.totalCalls === 0){ alert('No se encontraron duraciones válidas. Verifica que la columna de duración tenga formato HH:MM:SS (ej.: "Total Duration").'); return; }
-    renderStats(agg, reportType); renderTable(agg.perGroup, reportType); btnPdf.disabled = false;
+    renderStats(agg, reportType); renderTable(agg.perGroup, reportType); 
+    btnPdf.disabled = false;
+    btnExcel.disabled = false;
   });
 
   btnPdf.addEventListener('click', makePdf);
+  btnExcel.addEventListener('click', makeExcel);
 })();
 </script>
 </body>
